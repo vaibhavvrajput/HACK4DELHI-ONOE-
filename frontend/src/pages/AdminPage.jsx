@@ -4,6 +4,8 @@ import { getVotingContract } from '../eth/voting'
 const AdminPage = () => {
   const [name, setName] = useState('')
   const [party, setParty] = useState('')
+  // Add state for adding candidate
+  const [candidateState, setCandidateState] = useState('Delhi')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [dates, setDates] = useState('')
@@ -36,8 +38,9 @@ const AdminPage = () => {
     }
     try {
       const { contract, account } = await getVotingContract()
-      await contract.methods.addCandidate(name, party).send({ from: account })
-      setInfo(`✓ Candidate "${name}" added successfully.`)
+      // Pass state to addCandidate
+      await contract.methods.addCandidate(name, party, candidateState).send({ from: account })
+      setInfo(`✓ Candidate "${name}" added successfully for ${candidateState}.`)
       setName('')
       setParty('')
     } catch (e) {
@@ -124,18 +127,46 @@ const AdminPage = () => {
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Political Party</label>
                 <input
-                  type="text"
+                  className="glass-input"
+                  placeholder="Party Name"
                   value={party}
                   onChange={(e) => setParty(e.target.value)}
-                  placeholder="e.g. National Party A"
-                  className="glass-input"
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', padding: '12px', marginTop: '15px' }}
                 />
+
+                <div style={{ marginTop: '15px' }}>
+                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', opacity: 0.8 }}>Constituency / State</label>
+                  <select
+                    className="glass-input"
+                    value={candidateState}
+                    onChange={(e) => setCandidateState(e.target.value)}
+                    style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.4)' }}
+                  >
+                    <option value="Delhi">Delhi</option>
+                    <option value="Mumbai">Mumbai</option>
+                    <option value="Bangalore">Bangalore</option>
+                    <option value="Chennai">Chennai</option>
+                    <option value="Kolkata">Kolkata</option>
+                  </select>
+                </div>
               </div>
-              <button className="primary" onClick={handleAddCandidate} style={{ marginTop: '10px' }}>
+
+              <button 
+                className="glass-button"
+                onClick={handleAddCandidate}
+                style={{ 
+                  marginTop: '25px', 
+                  width: '100%', 
+                  background: 'linear-gradient(135deg, var(--saffron) 0%, #ff9f1c 100%)',
+                  fontWeight: 600
+                }}
+              >
                  + Register Candidate
               </button>
             </div>
+            
+            <h4 style={{ marginTop: '30px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>Live Candidate Registry</h4>
+            <LiveCandidateList />
           </div>
         )}
 
@@ -218,6 +249,47 @@ const AdminPage = () => {
         </div>
       )}
 
+    </div>
+  )
+}
+
+const LiveCandidateList = () => {
+  const [list, setList] = useState([])
+  useEffect(() => {
+     // Fetch candidates from our mock contract
+     const load = async () => {
+        const { contract } = await getVotingContract()
+        const count = await contract.methods.getCountCandidates().call()
+        const temp = []
+        for(let i=1; i<=Number(count); i++){
+            const c = await contract.methods.getCandidate(i).call()
+            temp.push(c)
+        }
+        setList(temp)
+     }
+     load()
+     // Poll every 5 seconds to see vote updates in real-time
+     const interval = setInterval(load, 5000)
+     return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+       {list.map(c => (
+         <div key={c.id} style={{ 
+           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+           background: 'rgba(255,255,255,0.05)', padding: '10px 15px', borderRadius: '4px'
+         }}>
+            <div>
+              <div style={{ fontWeight: 'bold' }}>{c.name}</div>
+              <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{c.party}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+               <div style={{ fontSize: '1.2rem', color: 'var(--saffron)' }}>{c.voteCount}</div>
+               <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>VOTES</div>
+            </div>
+         </div>
+       ))}
     </div>
   )
 }

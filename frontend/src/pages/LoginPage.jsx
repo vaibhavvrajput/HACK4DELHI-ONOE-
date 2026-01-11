@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { Link, useNavigate } from 'react-router-dom'
 
 const LoginPage = () => {
   const [voterId, setVoterId] = useState('')
@@ -21,11 +20,13 @@ const LoginPage = () => {
       })
       if (!res.ok) throw new Error('Invalid voter ID or password')
       const data = await res.json()
-      const { token, role } = data
+      const { token, role, state } = data
       if (role === 'admin') localStorage.setItem('jwtTokenAdmin', token)
       if (role === 'user') localStorage.setItem('jwtTokenVoter', token)
       localStorage.setItem('voter_id', voterId)
       localStorage.setItem('role', role)
+      // Save the state returned from backend
+      localStorage.setItem('userState', state)
       
       // Force a small reload/redirect to ensure App.jsx picks up the role
       window.location.href = role === 'admin' ? '/admin' : '/voter'
@@ -88,7 +89,7 @@ const LoginPage = () => {
               style={{ padding: '12px' }}
             />
           </div>
-          
+
           {error && (
             <div style={{ 
               background: 'rgba(255,0,0,0.1)', 
@@ -107,6 +108,18 @@ const LoginPage = () => {
               </span>
             ) : 'Secure Login'}
           </button>
+
+          {/* New Register Link */}
+          <div className="mt-6 pt-6 border-t border-white/10 text-center">
+            <p className="text-gray-400 text-sm mb-3">New Voter?</p>
+            <Link 
+              to="/register"
+              className="block w-full bg-white/5 hover:bg-white/10 text-emerald-400 font-semibold py-2 px-4 rounded-lg transition-colors border border-dashed border-emerald-500/30"
+            >
+              Register with Aadhar
+            </Link>
+          </div>
+
         </form>
       </div>
       

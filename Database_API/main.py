@@ -68,7 +68,8 @@ try:
         CREATE TABLE IF NOT EXISTS voters (
             voter_id TEXT PRIMARY KEY NOT NULL,
             role TEXT NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            state TEXT DEFAULT 'Delhi'
         )
         """)
         
@@ -105,11 +106,17 @@ try:
         
         # Seed default users
         default_users = [
-            ("admin-001", "admin", "adminpass"),
-            ("user-001", "user", "userpass"),
+            ("admin-001", "admin", "adminpass", "Delhi"),
+            ("user-001", "user", "userpass", "Mumbai"),
         ]
-        for v_id, role, pwd in default_users:
-            cursor.execute("INSERT OR IGNORE INTO voters (voter_id, role, password) VALUES (?, ?, ?)", (v_id, role, pwd))
+        for v_id, role, pwd, st in default_users:
+            try:
+                # distinct handling for old schema compatibility (if running without dropping db)
+                # Ideally in dev we just add the column or ignore error if exists
+                cursor.execute("ALTER TABLE voters ADD COLUMN state TEXT DEFAULT 'Delhi'")
+            except:
+                pass
+            cursor.execute("INSERT OR IGNORE INTO voters (voter_id, role, password, state) VALUES (?, ?, ?, ?)", (v_id, role, pwd, st))
 
         # Seed default constituencies
         cursor.execute("SELECT count(*) FROM constituencies")
@@ -138,8 +145,29 @@ except Exception as e:
     print(f"❌ Database initialization failed: {e}")
 
 
+# ---- AUTH HELPERS ----
+def get_current_user_from_request(request: Request) -> Optional[dict]:
+    auth = request.headers.get('authorization')
+    if not auth: return None
+    try:
+        token = auth.replace("Bearer ", "")
+        return jwt.decode(token, os.environ["SECRET_KEY"], algorithms=['HS256'])
+    except: return None
+
 # ---- API MODELS ----
 class LoginRequest(BaseModel):
+    voter_id: str
+    password: str
+
+class AadharRequest(BaseModel):
+    aadhar_number: str
+
+# NEW: Registration Request Model
+class VoterRegistrationRequest(BaseModel):
+    aadhar_number: str
+    pan_number: str
+
+class VoterRegistrationResponse(BaseModel):
     voter_id: str
     password: str
 
@@ -166,29 +194,108 @@ class AddVoterRequest(BaseModel):
     role: str
     password: str
 
-# ---- AUTH HELPERS ----
-def get_current_user_from_request(request: Request) -> Optional[dict]:
-    auth = request.headers.get('authorization')
-    if not auth: return None
-    try:
-        token = auth.replace("Bearer ", "")
-        return jwt.decode(token, os.environ["SECRET_KEY"], algorithms=['HS256'])
-    except: return None
+# Mock Aadhar API Data
+AADHAR_DATABASE = {
+    # Test Cases for Demo
+    "111122223333": {"state": "Delhi", "name": "Aarav Sharma", "age": 25},
+    "444455556666": {"state": "Mumbai", "name": "Vihaan Kapoor", "age": 30},
+    "777788889999": {"state": "Bangalore", "name": "Ishaan Reddy", "age": 28},
+    "123412341234": {"state": "Kolkata", "name": "Aditya Roy", "age": 35},
+    "999988887777": {"state": "Chennai", "name": "Sai Krishna", "age": 40}
+}
 
-# ---- ENDPOINTS ----
+# Mock PAN Verification
+def verify_pan_format(pan: str) -> bool:
+    import re
+    # PAN Format: 5 Letters, 4 Digits, 1 Letter (e.g., ABCDE1234F)
+    pattern = re.compile(r"[A-Z]{5}[0-9]{4}[A-Z]{1}")
+    return bool(pattern.match(pan))
+
+def mock_uidai_verification(aadhar_num: str):
+    # Retrieve from mock db or assign random for other valid numbers
+    if aadhar_num in AADHAR_DATABASE:
+        return AADHAR_DATABASE[aadhar_num]
+    
+    # Default assignment logic based on last digit for unknown numbers to enable testing
+    last_digit = int(aadhar_num[-1])
+    states = ["Delhi", "Mumbai", "Bangalore", "Chennai", "Kolkata", "Delhi", "Mumbai", "Bangalore", "Chennai", "Kolkata"]
+    return {
+        "state": states[last_digit],
+        "name": "Verified Citizen",
+        "age": 20 + last_digit
+    }
 
 @app.post("/login")
 async def login(request: LoginRequest):
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT role FROM voters WHERE voter_id = ? AND password = ?", (request.voter_id, request.password))
+        cursor.execute("SELECT role, state FROM voters WHERE voter_id = ? AND password = ?", (request.voter_id, request.password))
         row = cursor.fetchone()
         
     if not row:
         raise HTTPException(status_code=401, detail="Invalid credentials")
         
     token = jwt.encode({'voter_id': request.voter_id, 'role': row['role']}, os.environ["SECRET_KEY"], algorithm='HS256')
-    return {'token': token, 'role': row['role']}
+    return {
+        'token': token, 
+        'role': row['role'],
+        'state': row['state'] if row['state'] else 'Delhi' # Return the state
+    }
+
+@app.post("/verify-aadhar")
+async def verify_aadhar(req: AadharRequest):
+    if len(req.aadhar_number) != 12 or not req.aadhar_number.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid Aadhar Number. Must be 12 digits.")
+    
+    # Simulate API Call
+    user_details = mock_uidai_verification(req.aadhar_number)
+    
+    return {
+        "status": "valid", 
+        "message": "Aadhar Verified Successfully",
+        "state": user_details['state'],
+        "name": user_details['name']
+    }
+
+@app.post("/register-new-voter")
+async def register_new_voter(req: VoterRegistrationRequest):
+    # 1. Verify Aadhar
+    if not (len(req.aadhar_number) == 12 and req.aadhar_number.isdigit()):
+         raise HTTPException(status_code=400, detail="Invalid Aadhar Number. Must be 12 digits.")
+
+    # 2. Verify PAN Card
+    if not verify_pan_format(req.pan_number.upper()):
+        raise HTTPException(status_code=400, detail="Invalid PAN Number format. Must be 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F).")
+
+    # 3. Get Details from "API"
+    user_details = mock_uidai_verification(req.aadhar_number)
+    user_state = user_details['state']
+
+    # 4. Generate Voter ID and Password
+    import random
+    import string
+    
+    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    voter_id = f"VID-{req.aadhar_number[-4:]}-{suffix}"
+    password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+    # 5. Store in Database with STATE
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO voters (voter_id, role, password, state) VALUES (?, ?, ?, ?)",
+                (voter_id, "user", password, user_state)
+            )
+            conn.commit()
+            
+        return {
+            "voter_id": voter_id, 
+            "password": password, 
+            "state": user_state,
+            "message": f"Registered successfully for {user_state}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/validate-token")
 async def validate_token(request: Request):

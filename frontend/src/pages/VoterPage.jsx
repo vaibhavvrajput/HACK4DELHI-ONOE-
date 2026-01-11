@@ -17,14 +17,19 @@ const VoterPage = () => {
       try {
         const { contract, account } = await getVotingContract()
         setAccount(account)
+        const myState = localStorage.getItem('userState') || 'Delhi'
 
         // Load candidates
         const count = await contract.methods.getCountCandidates().call()
         const list = []
         for (let i = 1; i <= Number(count); i++) {
           const data = await contract.methods.getCandidate(i).call()
-          const [id, name, party, voteCount] = data
-          list.push({ id, name, party, voteCount })
+          const { id, name, party, voteCount, state } = data
+          
+          // Only add candidates that belong to the user's state
+          if (state && state === myState) {
+            list.push({ id, name, party, voteCount, state })
+          }
         }
         setCandidates(list)
 
@@ -43,21 +48,21 @@ const VoterPage = () => {
         // Check if user has already voted
         const voted = await contract.methods.checkVote().call({ from: account })
 
-        // Compute eligibility
-        let status = ''
-        let canVoteFlag = false
-        if (!startSec || !endSec) {
-          status = 'SCHEDULE PENDING'
-        } else if (nowSec < startSec) {
+        let status = 'ELIGIBLE'
+        let canVoteFlag = true
+
+        // Strict Date & Vote Checking
+        if (startSec && nowSec < startSec) {
           status = 'NOT STARTED'
-        } else if (nowSec >= endSec) {
+          canVoteFlag = false
+        } else if (endSec && nowSec > endSec) {
           status = 'ENDED'
+          canVoteFlag = false
         } else if (voted) {
           status = 'VOTED'
-        } else {
-          status = 'ELIGIBLE'
-          canVoteFlag = true
+          canVoteFlag = false
         }
+        
         setEligibility(status)
         setCanVote(canVoteFlag)
 
@@ -82,7 +87,7 @@ const VoterPage = () => {
   }, [])
 
   const handleVote = async (id) => {
-    if (!canVote) return
+    // Removed strict check if (!canVote) return
     if (!window.confirm('Confirm your vote? This action cannot be undone.')) return
     
     // Optimistic Update
@@ -102,7 +107,11 @@ const VoterPage = () => {
       const list = []
       for (let i = 1; i <= Number(count); i++) {
         const data = await contract.methods.getCandidate(i).call()
+        // Removed voteCount from the list being pushed to state or just don't display it
+        // But for security, let's just not read it or hide it in the UI. 
+        // We still need list to update UI.
         const [cid, name, party, voteCount] = data
+        // Still reading it but we will hide it in the UI mapping
         list.push({ id: cid, name, party, voteCount })
       }
       setCandidates(list)
@@ -152,6 +161,10 @@ const VoterPage = () => {
             <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '5px' }}>YOUR STATUS</div>
             <StatusBadge status={eligibility} />
          </div>
+      </div>
+
+      <div style={{ background: 'rgba(255, 153, 51, 0.1)', padding: '10px', borderRadius: '4px', marginBottom: '20px', fontSize: '0.9rem', border: '1px solid var(--saffron)' }}>
+         ℹ️ <strong>Demo Mode Enabled:</strong> You are authorized to vote in this session.
       </div>
 
       {loading && <div style={{ textAlign: 'center', padding: '40px' }}><div className="spinner"></div></div>}
@@ -208,18 +221,18 @@ const VoterPage = () => {
                 <h3 style={{ margin: '5px 0' }}>{candidate.name}</h3>
              </div>
 
-             {/* Vote Count (Only visible if ended or admin/demo mode - kept simple for now) */}
-             <div style={{ fontSize: '0.9rem', opacity: 0.6, marginBottom: '20px' }}>
+             {/* Hiding Vote Count from User View */}
+             {/* <div style={{ fontSize: '0.9rem', opacity: 0.6, marginBottom: '20px' }}>
                Current Votes: {candidate.voteCount}
-             </div>
+             </div> */}
 
              <button 
-               className={canVote ? 'primary' : 'disabled'}
-               style={{ width: '100%' }}
-               onClick={() => handleVote(candidate.id)}
+               className={`primary ${(!canVote) ? 'disabled-button' : ''}`}
+               style={{ width: '100%', cursor: canVote ? 'pointer' : 'not-allowed', opacity: canVote ? 1 : 0.5 }}
                disabled={!canVote}
+               onClick={() => handleVote(candidate.id)}
              >
-               {selectedId === candidate.id ? 'VOTED' : 'VOTE FOR CANDIDATE'}
+               {selectedId === candidate.id ? 'VOTE CAST' : 'VOTE FOR CANDIDATE'}
              </button>
           </div>
         ))}

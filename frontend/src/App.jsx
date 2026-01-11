@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import WelcomePage from './pages/WelcomePage'
 import VoterPage from './pages/VoterPage'
 import AdminPage from './pages/AdminPage'
@@ -88,6 +89,8 @@ const AnimateRoutes = () => {
     <Routes location={location} key={location.pathname}>
       <Route path="/" element={<LoginPage />} />
       <Route path="/welcome" element={<WelcomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/voter" element={<VoterPage />} />
       <Route path="/admin" element={<AdminPage />} />
     </Routes>
