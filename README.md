@@ -2,22 +2,30 @@
 
 #### The Decentralized Voting System using Ethereum Blockchain is a secure and transparent solution for conducting elections. Leveraging Ethereum's blockchain technology, this system ensures tamper-proof voting records, enabling users to cast their votes remotely while maintaining anonymity and preventing fraud. Explore this innovative project for trustworthy and decentralized voting processes.
 #### For a cool demo of this project watch this [YouTube video](https://www.youtube.com/watch?v=a5CJ70D2P-E).
-#### For more details checkout [Project Report](https://github.com/Krish-Depani/Decentralized-Voting-System-Using-Ethereum-Blockchain/blob/main/Project%20Report%20github.pdf).
-#### PS: This project is not maintained anymore.
+
+## Team: AI Babies
+**Team Leader:** Vaibhav Rajput  
+**Team Members:**
+- Shubham
+- Hriday
+- Vedansh
+- Akarsh
 
 ## Features
--  Implements JWT for secure voter authentication and authorization.
--  Utilizes Ethereum blockchain for tamper-proof and transparent voting records.
+-  **State-wise Voting:** Voters are automatically assigned to their constituency based on Aadhar data.
+-  **Aadhar & PAN Verification:** Secure registration using 12-digit Aadhar and PAN card validation.
+-  **Implements JWT** for secure voter authentication and authorization.
+-  **Utilizes Ethereum blockchain** for tamper-proof and transparent voting records.
 -  Removes the need for intermediaries, ensuring a trustless voting process.
 -  Admin panel to manage candidates, set voting dates, and monitor results.
 -  Intuitive UI for voters to cast votes and view candidate information.
 
 ## Requirements
-- Node.js (version – 18.14.0)
+- Node.js
 - Metamask
-- Python (version – 3.9)
+- Python
 - FastAPI
-- MySQL Database (port – 3306)
+- SQLite Database (Integrated)
 
 ## Screenshots
 
@@ -33,7 +41,7 @@
 
 2. Clone the repository by using the command
         
-        git clone https://github.com/Krish-Depani/Decentralized-Voting-System-Using-Ethereum-Blockchain.git
+        git clone https://github.com/vaibhavvrajput/HACK4DELHI-ONOE-.git
 
 3. Download and install [Ganache](https://trufflesuite.com/ganache/).
 
