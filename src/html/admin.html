@@ -28,6 +28,21 @@
       <p id="Aday"></p>
     </div>
 
+  <div class="container">
+   <legend>Self-Sovereign Identity (SSI) & Offline Voting</legend>
+   <p>Generate a local voter identity (private key kept in browser) for offline vote signing and cross-region mobility.</p>
+   <button id="generateSSI">Generate Local SSI</button>
+   <button id="exportSSI">Export SSI (download)</button>
+   <button id="importSSI">Import SSI</button>
+   <input id="ssiFile" type="file" style="display:none" />
+   <p id="ssiInfo"></p>
+   <hr/>
+   <p>Offline ballot</p>
+   <button id="signBallot">Sign Selected Ballot</button>
+   <button id="sendStoredBallots">Send Stored Ballots</button>
+   <p id="offlineInfo"></p>
+  </div>
+
     <div class="container">
      <legend>Define Voting Dates</legend>  
      <table  class="table text-center"> 

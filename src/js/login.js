@@ -5,14 +5,8 @@ loginForm.addEventListener('submit', (event) => {
 
   const voter_id = document.getElementById('voter-id').value;
   const password = document.getElementById('password').value;
-  const token = voter_id;
-
-  const headers = {
-    'method': "GET",
-    'Authorization': `Bearer ${token}`,
-  };
-
-  fetch(`http://127.0.0.1:8000/login?voter_id=${voter_id}&password=${password}`, { headers })
+  // Call backend login endpoint; credentials are passed as query params per existing API.
+  fetch(`http://127.0.0.1:8000/login?voter_id=${encodeURIComponent(voter_id)}&password=${encodeURIComponent(password)}`)
   .then(response => {
     if (response.ok) {
       return response.json();
@@ -24,10 +18,11 @@ loginForm.addEventListener('submit', (event) => {
     if (data.role === 'admin') {
       console.log(data.role)
       localStorage.setItem('jwtTokenAdmin', data.token);
-      window.location.replace(`http://127.0.0.1:8080/admin.html?Authorization=Bearer ${localStorage.getItem('jwtTokenAdmin')}`);
+      // Use query param for existing server-side authorizeUser middleware
+      window.location.replace(`http://127.0.0.1:8080/admin.html?Authorization=Bearer%20${data.token}`);
     } else if (data.role === 'user'){
       localStorage.setItem('jwtTokenVoter', data.token);
-      window.location.replace(`http://127.0.0.1:8080/index.html?Authorization=Bearer ${localStorage.getItem('jwtTokenVoter')}`);
+      window.location.replace(`http://127.0.0.1:8080/index.html?Authorization=Bearer%20${data.token}`);
     }
   })
   .catch(error => {
